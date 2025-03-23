@@ -26,8 +26,6 @@ def encoder(string):
 
         char_dict[most_freq_pair] = max_val + 1
 
-        print(char_dict)
-
         new_list = []
         i = 0
 
@@ -42,4 +40,8 @@ def encoder(string):
 
         char_list = new_list
 
+    print(char_dict)
     print(char_list)
+
+
+encoder("appple")
