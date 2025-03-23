@@ -19,7 +19,10 @@ def encoder(string):
             frequency["".join(i)] = freq
 
         frequency = dict(sorted(frequency.items(), key=lambda x: x[1], reverse=True))
-        print(frequency)
+
+        if max(frequency.values()) == 1:
+            break
+
         max_val = max(char_dict.items(), key=lambda x: x[1])[1]
 
         most_freq_pair = list(frequency.keys())[0]
@@ -44,4 +47,4 @@ def encoder(string):
     print(char_list)
 
 
-encoder("apple")
+encoder("apples were applied")
