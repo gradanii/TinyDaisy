@@ -1,3 +1,6 @@
+# import json
+
+
 def encoder(string):
     chars = list(dict.fromkeys(string))
     char_dict = {key: i for i, key in enumerate(chars)}
@@ -42,6 +45,9 @@ def encoder(string):
                 i += 1
 
         char_list = new_list
+
+    # with open('vocab.json', 'w') as f:
+    # json.dump(char_dict, f, indent=4)
 
     print(char_dict)
     print(char_list)
