@@ -1,4 +1,4 @@
-# import json
+import json
 
 
 def encoder(string):
@@ -46,8 +46,14 @@ def encoder(string):
 
         char_list = new_list
 
-    # with open('vocab.json', 'w') as f:
-    # json.dump(char_dict, f, indent=4)
+    with open("vocab.json", "w") as f:
+        json.dump(char_dict, f, indent=4)
+
+    with open("vocab.json", "r") as f:
+        vocab_dict = json.load(f)
+
+    token_list = [vocab_dict[i] for i in char_list]
+    print(token_list)
 
     print(char_dict)
     print(char_list)
