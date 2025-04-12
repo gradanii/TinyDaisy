@@ -38,3 +38,6 @@ def encoder(string):
         byte_list = nbyte_list
 
     print(byte_list)
+
+
+# git test
