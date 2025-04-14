@@ -1,14 +1,14 @@
 import collections
 
 
-class tokenizer:
-    def __init__(self, vocab=None, vocab_size=257):
+class BPETokenizer:
+    def __init__(self, vocab=None, vocab_size=256):
         self.inv_vocab = vocab or {i: bytes([i]) for i in range(256)}
         self.byte_vocab = {v: k for k, v in self.inv_vocab.items()}
         self.new_token = max(self.inv_vocab.keys(), default=-1) + 1
         self.vocab_size = vocab_size
 
-    def encoder(self, string):
+    def encode(self, string):
         tokens = list(string.encode("utf-8"))
 
         while len(self.inv_vocab) < self.vocab_size:
@@ -41,7 +41,7 @@ class tokenizer:
 
         return tokens
 
-    def decoder(self, tokens):
+    def decode(self, tokens):
         for token in tokens:
             if token not in self.inv_vocab:
                 print("❌ Missing token in inv_vocab:", token)
