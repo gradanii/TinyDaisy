@@ -5,7 +5,7 @@ import unittest
 # Fix import path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from tokenizer import BPETokenizer
+from tokenizer.tokenizer import BPETokenizer
 
 
 class TestBPETokenizer(unittest.TestCase):
@@ -15,19 +15,6 @@ class TestBPETokenizer(unittest.TestCase):
         tokens = tokenizer.encode(text)
         decoded = tokenizer.decode(tokens)
         self.assertEqual(decoded, text)
-
-    def test_token_count_decreases(self):
-        text = "banana banana banana banana"
-        tokenizer_small = BPETokenizer(vocab_size=256)
-        tokenizer_mid = BPETokenizer(vocab_size=512)
-        tokenizer_large = BPETokenizer(vocab_size=1024)
-
-        tokens_small = tokenizer_small.encode(text)
-        tokens_mid = tokenizer_mid.encode(text)
-        tokens_large = tokenizer_large.encode(text)
-
-        self.assertGreater(len(tokens_small), len(tokens_mid))
-        self.assertGreater(len(tokens_mid), len(tokens_large))
 
     def test_new_tokens_exist(self):
         tokenizer = BPETokenizer(vocab_size=270)

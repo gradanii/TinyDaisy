@@ -2,13 +2,11 @@ import collections
 
 
 def encoder(string):
-    # initialize everything
     byte_list = list(string.encode("utf-8"))
     byte_vocab = {bytes([i]).decode("utf-8", errors="ignore"): i for i in range(256)}
     inv_vocab = dict((v, k) for k, v in byte_vocab.items())
     new_token = 256
 
-    # find the most frequent pair and add to the byte_vocab
     while len(byte_list) > 1:
         pairs = [tuple(byte_list[i : i + 2]) for i in range(len(byte_list) - 1)]
         frequency = collections.Counter(pairs)
