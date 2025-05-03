@@ -8,7 +8,7 @@ from tokenizer.tokenizer import BPETokenizer
 
 
 class embeddings:
-    def __init__(self, num_embed=512, embed_dim=26, max_seq_len=256):
+    def __init__(self, num_embed=512, embed_dim=256, max_seq_len=256):
         self.tokenizer = BPETokenizer(vocab_size=num_embed)
         self.vec_matrix = np.random.randn(num_embed, embed_dim)
         self.pos_matrix = np.random.randn(max_seq_len, embed_dim)
