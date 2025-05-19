@@ -92,3 +92,7 @@ class Attention:
         output = np.matmul(concat, self.w_o)
 
         return output
+
+
+def GELU(x):
+    return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.pow(x, 3))))
