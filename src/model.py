@@ -94,5 +94,10 @@ class Attention:
         return output
 
 
-def GELU(x):
+def gelu(x):
     return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.pow(x, 3))))
+
+
+def layernorm(x):
+    y = np.random.randn(x.shape)
+    b = np.random.randn(x.shape)
