@@ -91,5 +91,12 @@ def gelu(x):
 
 
 def layernorm(cfg, x):
-    y = np.random.randn(x.shape)
-    b = np.random.randn(x.shape)
+    gamma = np.random.randn(cfg.embed_dim)
+    beta = np.random.randn(cfg.embed_dim)
+    eps = 1e-5
+
+    mean = np.mean(x, axis=-1, keepdims=True)
+    var = np.var(x, axis=-1, keepdims=True)
+    x_normed = (x - mean) / np.sqrt(var + eps)
+
+    return gamma * x_normed + beta
