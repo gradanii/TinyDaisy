@@ -10,11 +10,12 @@ class Config:
         self.head_dim = 64
         self.num_head = 12
 
+        # Embedding params
+        self.vec_matrix = np.random.randn(self.num_embed, self.embed_dim)
+        self.pos_matrix = np.random.randn(self.num_embed, self.embed_dim)
+
 
 def embedding(cfg, strings):
-    vec_matrix = np.random.randn(cfg.num_embed, cfg.embed_dim)
-    pos_matrix = np.random.randn(cfg.num_embed, cfg.embed_dim)
-
     def vector(strings):
         batch = []
         lengths = []
@@ -22,7 +23,7 @@ def embedding(cfg, strings):
         max_len = max(len(t) for t in tokens)
         for token in tokens:
             padded = np.pad(token, (0, max_len - len(token)), constant_values=0)
-            embedding = vec_matrix[padded]
+            embedding = cfg.vec_matrix[padded]
             batch.append(embedding)
             lengths.append(len(token))
 
@@ -34,7 +35,7 @@ def embedding(cfg, strings):
         for seq_len in lengths:
             pos_array = np.array([i for i in range(seq_len)], dtype=np.int64)
             padded = np.pad(pos_array, (0, max_len - seq_len), constant_values=0)
-            pos_embed = pos_matrix[padded]
+            pos_embed = cfg.pos_matrix[padded]
             batch.append(pos_embed)
 
         return np.stack(batch)
