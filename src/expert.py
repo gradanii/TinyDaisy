@@ -11,8 +11,39 @@ class Config:
         self.num_head = 12
 
         # Embedding params
-        self.vec_matrix = np.random.randn(self.num_embed, self.embed_dim)
-        self.pos_matrix = np.random.randn(self.num_embed, self.embed_dim)
+        self.vec_matrix = self.he_init(self.num_embed, self.embed_dim)
+        self.pos_matrix = self.he_init(self.num_embed, self.embed_dim)
+
+        # Attention params
+        self.w_q = [
+            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
+        ]
+        self.w_k = [
+            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
+        ]
+        self.w_v = [
+            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
+        ]
+        self.w_o = self.he_init(self.head_dim * self.num_head, self.embed_dim)
+
+        self.b_q = np.zeros(
+            self.head_dim,
+        )
+        self.b_k = np.zeros(
+            self.head_dim,
+        )
+        self.b_v = np.zeros(
+            self.head_dim,
+        )
+
+        # LayerNorm params
+        self.gamma = np.ones(self.embed_dim)
+        self.beta = np.zeros(self.embed_dim)
+
+    @staticmethod
+    def he_init(dim_in, dim_out):
+        std = np.sqrt(1 / dim_in)
+        return np.random.randn(dim_in, dim_out) * std
 
 
 def embedding(cfg, strings):
@@ -67,22 +98,17 @@ def sdpa(cfg, q, k, v):
 
 
 def multihead(cfg, x):
-    w_q = [np.random.randn(cfg.embed_dim, cfg.head_dim) for _ in range(cfg.num_head)]
-    w_k = [np.random.randn(cfg.embed_dim, cfg.head_dim) for _ in range(cfg.num_head)]
-    w_v = [np.random.randn(cfg.embed_dim, cfg.head_dim) for _ in range(cfg.num_head)]
-    w_o = np.random.randn(cfg.head_dim * cfg.num_head, cfg.embed_dim)
-
     heads = []
     for i in range(cfg.num_head):
-        query = np.matmul(x, w_q[i])
-        key = np.matmul(x, w_k[i])
-        value = np.matmul(x, w_v[i])
+        query = np.matmul(x, cfg.w_q[i]) + cfg.b_q[i]
+        key = np.matmul(x, cfg.w_k[i]) + cfg.b_k[i]
+        value = np.matmul(x, cfg.w_v[i]) + cfg.b_v[i]
 
         z_i = sdpa(cfg, query, key, value)
         heads.append(z_i)
 
         concat = np.concatenate(heads, axis=-1)
-        output = np.matmul(concat, w_o)
+        output = np.matmul(concat, cfg.w_o)
 
         return output
 
@@ -92,12 +118,14 @@ def gelu(x):
 
 
 def layernorm(cfg, x):
-    gamma = np.random.randn(cfg.embed_dim)
-    beta = np.random.randn(cfg.embed_dim)
     eps = 1e-5
 
     mean = np.mean(x, axis=-1, keepdims=True)
     var = np.var(x, axis=-1, keepdims=True)
     x_normed = (x - mean) / np.sqrt(var + eps)
 
-    return gamma * x_normed + beta
+    return cfg.gamma * x_normed + cfg.beta
+
+
+def feedforward(cfg, x):
+    pass
