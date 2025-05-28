@@ -1,5 +1,5 @@
 import numpy as np
-from tokenizer import BPETokenizer
+from .tokenizer import BPETokenizer
 
 
 class Config:
@@ -9,6 +9,7 @@ class Config:
         self.embed_dim = 768
         self.head_dim = 64
         self.num_head = 12
+        self.num_blocks = 12
 
         # Embedding params
         self.vec_matrix = self.he_init(self.num_embed, self.embed_dim)
@@ -39,6 +40,17 @@ class Config:
         # LayerNorm params
         self.gamma = np.ones(self.embed_dim)
         self.beta = np.zeros(self.embed_dim)
+
+        # MLP params
+        self.w_l1 = self.he_init(self.embed_dim, 4 * self.embed_dim)
+        self.w_l2 = self.he_init(4 * self.embed_dim, self.embed_dim)
+
+        self.b_l1 = np.zeros(
+            4 * self.embed_dim,
+        )
+        self.b_l2 = np.zeros(
+            4 * self.embed_dim,
+        )
 
     @staticmethod
     def he_init(dim_in, dim_out):
