@@ -16,25 +16,19 @@ class Config:
         self.pos_matrix = self.he_init(self.num_embed, self.embed_dim)
 
         # Attention params
-        self.w_q = [
-            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
-        ]
-        self.w_k = [
-            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
-        ]
-        self.w_v = [
-            self.he_init(self.embed_dim, self.head_dim) for _ in range(self.num_head)
-        ]
+        self.w_q = self.he_init(self.embed_dim, self.embed_dim)
+        self.w_k = self.he_init(self.embed_dim, self.embed_dim)
+        self.w_v = self.he_init(self.embed_dim, self.embed_dim)
         self.w_o = self.he_init(self.head_dim * self.num_head, self.embed_dim)
 
         self.b_q = np.zeros(
-            self.head_dim,
+            self.embed_dim,
         )
         self.b_k = np.zeros(
-            self.head_dim,
+            self.embed_dim,
         )
         self.b_v = np.zeros(
-            self.head_dim,
+            self.embed_dim,
         )
 
         # LayerNorm params
@@ -49,7 +43,7 @@ class Config:
             4 * self.embed_dim,
         )
         self.b_l2 = np.zeros(
-            4 * self.embed_dim,
+            self.embed_dim,
         )
 
     @staticmethod

@@ -13,6 +13,7 @@ def embedding(cfg, strings):
             batch.append(embedding)
             lengths.append(len(token))
 
+        max_len = max(lengths)
         vec_embed = np.stack(batch)
 
         assert vec_embed.ndim == 3, (
@@ -21,26 +22,20 @@ def embedding(cfg, strings):
         assert vec_embed.shape[2] == cfg.embed_dim, (
             f"Embedding dim mismatch: expected {cfg.embed_dim}, got {vec_embed.shape[2]}"
         )
-        return vec_embed, lengths
+        return vec_embed, max_len
 
-    def position(lengths):
-        batch = []
-        max_len = max(lengths)
-        for seq_len in lengths:
-            pos_array = np.array([i for i in range(seq_len)], dtype=np.int64)
-            padded = np.pad(pos_array, (0, max_len - seq_len), constant_values=0)
-            embedding = cfg.pos_matrix[padded]
-            batch.append(embedding)
-
-        pos_embed = np.stack(batch)
+    def position(max_len):
+        pos_indices = np.arange(max_len)
+        pos_embed = cfg.pos_matrix[pos_indices][np.newaxis, :, :]
 
         assert pos_embed.shape == (1, max_len, cfg.embed_dim), (
-            "Positional Embedding shape mismatch"
+            f"Positional Embedding shape mismatch, expected (1, max_len, embed_dim), got {pos_embed.shape}"
         )
+
         return pos_embed
 
-    vec_embed, lengths = vector(strings)
-    pos_embed = position(lengths)
+    vec_embed, max_len = vector(strings)
+    pos_embed = position(max_len)
 
     return vec_embed + pos_embed
 
@@ -54,9 +49,9 @@ def sdpa(cfg, q, k, v):
     scores = np.matmul(q, np.swapaxes(k, -2, -1))
     scaled_scores = scores / np.sqrt(cfg.head_dim)
 
-    d_m = scaled_scores.shape[1]
+    d_m = scaled_scores.shape[-1]
     mask = np.triu(np.ones((d_m, d_m)) * -np.inf, k=1)
-    mask = mask[np.newaxis, :, :]
+    mask = mask[np.newaxis, np.newaxis, :, :]
     masked_scores = scaled_scores + mask
 
     a = softmax(masked_scores)
@@ -66,28 +61,34 @@ def sdpa(cfg, q, k, v):
 
 
 def multihead(cfg, x):
-    heads = []
+    query = np.matmul(x, cfg.w_q) + cfg.b_q
+    key = np.matmul(x, cfg.w_k) + cfg.b_k
+    value = np.matmul(x, cfg.w_v) + cfg.b_v
 
-    x = np.transpose(
-        np.reshape(x, (x.shape[0], x.shape[1], cfg.num_head, cfg.head_dim)),
+    q = np.transpose(
+        np.reshape(query, (x.shape[0], x.shape[1], cfg.num_head, cfg.head_dim)),
         (0, 2, 1, 3),
     )
-    for i in range(cfg.num_head):
-        query = np.matmul(x, cfg.w_q[i]) + cfg.b_q[i]
-        key = np.matmul(x, cfg.w_k[i]) + cfg.b_k[i]
-        value = np.matmul(x, cfg.w_v[i]) + cfg.b_v[i]
 
-        assert query.shape == key.shape == value.shape
-        assert query.shape[-1] == cfg.embed_dim
+    k = np.transpose(
+        np.reshape(key, (x.shape[0], x.shape[1], cfg.num_head, cfg.head_dim)),
+        (0, 2, 1, 3),
+    )
 
-        z_i = sdpa(cfg, query, key, value)
-        heads.append(z_i)
+    v = np.transpose(
+        np.reshape(value, (x.shape[0], x.shape[1], cfg.num_head, cfg.head_dim)),
+        (0, 2, 1, 3),
+    )
 
-    concat = np.concatenate(heads, axis=-1)
-    output = np.matmul(concat, cfg.w_o)
+    assert query.shape == key.shape == value.shape
+    assert query.shape[-1] == cfg.embed_dim
+
+    z = sdpa(cfg, q, k, v)
+    z = z.transpose(0, 2, 1, 3).reshape(x.shape)
+    output = np.matmul(z, cfg.w_o)
 
     assert output.shape == x.shape, "Attention must preserve input shape"
-    return output
+    return z
 
 
 def gelu(x):
@@ -104,6 +105,7 @@ def layernorm(cfg, x):
     normed = cfg.gamma * x_normed + cfg.beta
 
     assert normed.shape == x.shape, "Layernorm must preserve input shape"
+    return normed
 
 
 def mlp(cfg, x):
@@ -112,6 +114,7 @@ def mlp(cfg, x):
 
     l2 = np.matmul(gelu(l1), cfg.w_l2) + cfg.b_l2
     assert l2.shape == x.shape, "Final MLP projection must preserve input shape"
+    return l2
 
 
 def forward(cfg, strings):
@@ -120,8 +123,6 @@ def forward(cfg, strings):
     for _ in range(cfg.num_blocks):
         x1 = layernorm(cfg, x)
         x2 = x + multihead(cfg, x1)
-        assert x2.shape == x.shape, "Residual addition shape mismatch"
-
         x3 = layernorm(cfg, x2)
         x = x2 + mlp(cfg, x3)
 
