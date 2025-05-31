@@ -46,6 +46,8 @@ class Config:
             self.embed_dim,
         )
 
+        # Forward params
+
     @staticmethod
     def he_init(dim_in, dim_out):
         std = np.sqrt(1 / dim_in)
