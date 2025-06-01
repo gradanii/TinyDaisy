@@ -1,16 +1,34 @@
 import collections
 import json
 
+
 class BPETokenizer:
     def __init__(self, vocab=None, vocab_size=256):
         self.inv_vocab = vocab or {i: bytes([i]) for i in range(256)}
         self.byte_vocab = {v: k for k, v in self.inv_vocab.items()}
         self.new_token = max(self.inv_vocab.keys(), default=-1) + 1
         self.vocab_size = vocab_size
+        self.frozen = True
         self.merges = []
 
     def encode(self, string):
         tokens = list(string.encode("utf-8"))
+
+        if getattr(self, "frozen", False):
+            for mfp in self.merges:
+                i = 0
+                ntokens = []
+                while i < len(tokens):
+                    pair = tuple(tokens[i : i + 2])
+                    if pair == mfp:
+                        merged = b"".join(self.inv_vocab[j] for j in pair)
+                        ntokens.append(self.byte_vocab[merged])
+                        i += 2
+                    else:
+                        ntokens.append(tokens[i])
+                        i += 1
+                tokens = ntokens
+            return tokens
 
         while len(self.inv_vocab) < self.vocab_size:
             pairs = [tuple(tokens[i : i + 2]) for i in range(len(tokens) - 1)]
@@ -21,12 +39,12 @@ class BPETokenizer:
 
             mfp = frequency.most_common(1)[0][0]
             self.merges.append(mfp)
-            word = b"".join(self.inv_vocab[i] for i in mfp)
 
-            ntokens = []
+            word = b"".join(self.inv_vocab[i] for i in mfp)
             self.byte_vocab[word] = self.new_token
             self.inv_vocab[self.new_token] = word
 
+            ntokens = []
             i = 0
             while i < len(tokens):
                 pair = tuple(tokens[i : i + 2])
@@ -38,7 +56,6 @@ class BPETokenizer:
                     i += 1
 
             self.new_token += 1
-
             tokens = ntokens
 
         return tokens
@@ -51,9 +68,12 @@ class BPETokenizer:
         string = b"".join(self.inv_vocab[token] for token in tokens)
 
         return string.decode("utf-8")
-    
+
     def save_vocab(self, path="vocab.json"):
-        json_vocab = {str(k): v.decode("utf-8", errors="replace") for k, v in self.inv_vocab.items()}
+        json_vocab = {
+            str(k): v.decode("utf-8", errors="replace")
+            for k, v in self.inv_vocab.items()
+        }
         with open(path, "w") as f:
             json.dump(json_vocab, f, ensure_ascii=False, indent=2)
 
