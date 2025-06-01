@@ -1,41 +1,18 @@
 import numpy as np
 
 
-def embedding(cfg, strings):
-    def vector(strings):
-        batch = []
-        lengths = []
-        tokens = [cfg.tokenizer.encode(s) for s in strings]
-        max_len = max(len(t) for t in tokens)
-        for token in tokens:
-            padded = np.pad(token, (0, max_len - len(token)), constant_values=0)
-            embedding = cfg.vec_matrix[padded]
-            batch.append(embedding)
-            lengths.append(len(token))
+def embedding(cfg, inputs):
+    vec_embed = cfg.vec_matrix[inputs]
 
-        max_len = max(lengths)
-        vec_embed = np.stack(batch)
+    assert vec_embed.ndim == 3, f"Embedding output must be 3D, got {vec_embed.shape}"
+    assert vec_embed.shape[2] == cfg.embed_dim, (
+        f"Embedding dim mismatch: expected {cfg.embed_dim}, got {vec_embed.shape[2]}"
+    )
 
-        assert vec_embed.ndim == 3, (
-            f"Embedding output must be 3D, got {vec_embed.shape}"
-        )
-        assert vec_embed.shape[2] == cfg.embed_dim, (
-            f"Embedding dim mismatch: expected {cfg.embed_dim}, got {vec_embed.shape[2]}"
-        )
-        return vec_embed, max_len
-
-    def position(max_len):
-        pos_indices = np.arange(max_len)
-        pos_embed = cfg.pos_matrix[pos_indices][np.newaxis, :, :]
-
-        assert pos_embed.shape == (1, max_len, cfg.embed_dim), (
-            f"Positional Embedding shape mismatch, expected (1, max_len, embed_dim), got {pos_embed.shape}"
-        )
-
-        return pos_embed
-
-    vec_embed, max_len = vector(strings)
-    pos_embed = position(max_len)
+    pos_embed = cfg.pos_matrix[np.arange(inputs.shape[-1])][np.newaxis, :, :]
+    assert pos_embed.shape == (1, inputs.shape[-1], cfg.embed_dim), (
+        f"Positional Embedding shape mismatch, expected (1, max_len, embed_dim), got {pos_embed.shape}"
+    )
 
     return vec_embed + pos_embed
 
@@ -117,8 +94,8 @@ def mlp(cfg, x):
     return l2
 
 
-def forward(cfg, strings):
-    x = embedding(cfg, strings)
+def forward(cfg, inputs):
+    x = embedding(cfg, inputs)
 
     for _ in range(cfg.num_blocks):
         x1 = layernorm(cfg, x)
@@ -126,4 +103,7 @@ def forward(cfg, strings):
         x3 = layernorm(cfg, x2)
         x = x2 + mlp(cfg, x3)
 
-    return layernorm(cfg, x)
+    logits = layernorm(cfg, x)
+    logits = np.matmul(x, cfg.w_voc) + cfg.b_voc
+
+    return logits

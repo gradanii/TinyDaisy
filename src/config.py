@@ -4,12 +4,13 @@ from .tokenizer import BPETokenizer
 
 class Config:
     def __init__(self):
-        self.tokenizer = BPETokenizer()
         self.num_embed = 512
         self.embed_dim = 768
         self.head_dim = 64
         self.num_head = 12
         self.num_blocks = 12
+        self.vocab_size = 4096
+        self.tokenizer = BPETokenizer(vocab_size=self.vocab_size)
 
         # Embedding params
         self.vec_matrix = self.he_init(self.num_embed, self.embed_dim)
@@ -47,6 +48,10 @@ class Config:
         )
 
         # Forward params
+        self.w_voc = self.he_init(self.embed_dim, self.vocab_size)
+        self.b_voc = np.zeros(
+            self.vocab_size,
+        )
 
     @staticmethod
     def he_init(dim_in, dim_out):
