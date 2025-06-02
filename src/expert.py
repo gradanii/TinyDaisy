@@ -27,7 +27,8 @@ def sdpa(cfg, q, k, v):
     scaled_scores = scores / np.sqrt(cfg.head_dim)
 
     d_m = scaled_scores.shape[-1]
-    mask = np.triu(np.ones((d_m, d_m)) * -np.inf, k=1)
+    mask = np.full((d_m, d_m), 0.0)
+    mask[np.triu_indices(d_m, 1)] = -np.inf
     mask = mask[np.newaxis, np.newaxis, :, :]
     masked_scores = scaled_scores + mask
 
@@ -65,7 +66,7 @@ def multihead(cfg, x):
     output = np.matmul(z, cfg.w_o)
 
     assert output.shape == x.shape, "Attention must preserve input shape"
-    return z
+    return output
 
 
 def gelu(x):
