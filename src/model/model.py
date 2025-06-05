@@ -2,15 +2,6 @@ import jax.numpy as jnp
 import jax.nn as nn
 from jax import random
 
-DAISY_CONFIG = {
-    "embed_dim": 768,
-    "num_embed": 4096,
-    "head_dim": 64,
-    "num_head": 12,
-    "vocab_size": 4096,
-    "num_blocks": 12,
-}
-
 
 def he_init(d_in, d_out):
     scale = jnp.sqrt(1 / d_in)
