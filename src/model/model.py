@@ -9,10 +9,11 @@ def he_init(d_in, d_out):
 
 
 def embedding(params, inputs):
-    vec_embed = jnp.take(params["embedding"]["vec_matrix"], inputs)
+    vec_embed = jnp.take(params["embedding"]["vec_matrix"], inputs, axis=0)
     pos_embed = jnp.take(
-        params["embedding"]["pos_matrix"], jnp.arange(inputs.shape[-1])
-    )[jnp.newaxis, :, :]
+        params["embedding"]["pos_matrix"], jnp.arange(inputs.shape[-1]), axis=0
+    )
+    pos_embed = pos_embed[jnp.newaxis, :, :]
 
     return vec_embed + pos_embed
 
@@ -80,6 +81,6 @@ def forward(cfg, params, inputs):
         x = x2 + mlp(x3, block)
 
     logits = layernorm(x, params["final_norm"]["gamma"], params["final_norm"]["beta"])
-    logits = jnp.matmul(logits, params["final_proj"]["w"]) + params["final_proj"]["b"]
+    logits = jnp.matmul(logits, params["vocab_proj"]["w"]) + params["vocab_proj"]["b"]
 
     return logits
