@@ -7,17 +7,7 @@ def he_init(key, d_in, d_out):
     return random.normal(key, shape=(d_in, d_out)) * scale
 
 
-DAISY_CONFIG = {
-    "embed_dim": 768,
-    "num_embed": 4096,
-    "head_dim": 64,
-    "num_head": 12,
-    "vocab_size": 4096,
-    "num_blocks": 12,
-}
-
-
-def init_params(key, cfg=DAISY_CONFIG):
+def init_params(key, cfg):
     params = {}
     keys = random.split(key, 100)  # split enough ahead of time
     ki = 0
