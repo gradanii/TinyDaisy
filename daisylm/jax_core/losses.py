@@ -1,6 +1,6 @@
 import jax.numpy as jnp
-from jax_backend.tokenizer import BPETokenizer
-from jax_backend.model.model import forward, softmax
+from jax_core.tokenizer import BPETokenizer
+from jax_core.model.model import forward, softmax
 
 
 def CrossEntropyLoss(cfg, params, data):
