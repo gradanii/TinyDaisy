@@ -54,4 +54,4 @@ tests/
 misc/
 transformer/
 src_torch/
-legacy-numpy/
+legacy_numpy/
