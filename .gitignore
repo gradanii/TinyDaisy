@@ -51,9 +51,7 @@ dist/
 *.egg-info/
 
 tests/
-
 misc/
-
 transformer/
-
 src_torch/
+legacy_numpy/
