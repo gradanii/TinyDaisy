@@ -1,19 +1,23 @@
 import jax.numpy as jnp
+from jax import random
 import numpy as np
 
 class DaisyTensor:
-    def __init__(self, data, requires_grad: bool, _children=(), _op='', name=None):
+    def __init__(self, data, requires_grad: bool, _children=(), _op='', _meta=None, name=None):
         self.data = jnp.array(data)
         self.requires_grad = requires_grad
         self.grad = None
         self._backward = lambda: None
         self._prev = set(_children)
         self._op = _op
+        self._meta = _meta
+        self.shape = self.data.shape
         self.name = name
 
     def __add__(self, other):
-        out = DaisyTensor(self.data + self._unwrap(other), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(self.data + other_dt.data, requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'add'
 
         def _backward():
@@ -22,15 +26,16 @@ class DaisyTensor:
 
             if self.requires_grad:
                 self.grad = jnp.add(self.grad, out.grad) if self.grad is not None else out.grad
-            if other.requires_grad:
-                other.grad = jnp.add(other.grad, out.grad) if other.grad is not None else out.grad
+            if other_dt.requires_grad:
+                other_dt.grad = jnp.add(other_dt.grad, out.grad) if other_dt.grad is not None else out.grad
 
         out._backward = _backward
         return out
 
     def __sub__(self, other):
-        out = DaisyTensor(self.data - self._unwrap(other), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(self.data - other_dt.data, requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'sub'
 
         def _backward():
@@ -39,15 +44,16 @@ class DaisyTensor:
 
             if self.requires_grad:
                 self.grad = jnp.add(self.grad, out.grad) if self.grad is not None else out.grad
-            if other.requires_grad:
-                other.grad = jnp.add(other.grad, -out.grad) if other.grad is not None else -out.grad
+            if other_dt.requires_grad:
+                other_dt.grad = jnp.add(other_dt.grad, -out.grad) if other_dt.grad is not None else -out.grad
 
         out._backward = _backward
         return out
 
     def __mul__(self, other):
-        out = DaisyTensor(self.data * self._unwrap(other), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(self.data * other_dt.data, requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'mul'
 
         def _backward():
@@ -56,15 +62,16 @@ class DaisyTensor:
 
             if self.requires_grad:
                 self.grad = jnp.add(self.grad, other.data * out.grad) if self.grad is not None else (other.data * out.grad)
-            if other.requires_grad:
-                other.grad = jnp.add(other.grad, self.data * out.grad) if other.grad is not None else (self.data * out.grad)
+            if other_dt.requires_grad:
+                other_dt.grad = jnp.add(other_dt.grad, self.data * out.grad) if other_dt.grad is not None else (self.data * out.grad)
 
         out._backward = _backward
         return out
 
     def __truediv__(self, other):
-        out = DaisyTensor(self.data / self._unwrap(other), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(self.data / other_dt.data, requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'truediv'
 
         def _backward():
@@ -72,16 +79,17 @@ class DaisyTensor:
                 return
 
             if self.requires_grad:
-                self.grad = jnp.add(self.grad, (out.grad / other.data)) if self.grad is not None else (out.grad / other.data)
-            if other.requires_grad:
-                other.grad = jnp.add(other.grad, (-1 * out.grad * self.data / (other.data**2)) if other.grad is not None else (-1 * out.grad * self.data / (other.data**2)))
-
+                self.grad = jnp.add(self.grad, (out.grad / other_dt.data)) if self.grad is not None else (out.grad / other.data)
+            if other_dt.requires_grad:
+                other_dt.grad = jnp.add(other_dt.grad, -1 * out.grad * self.data / (other_dt.data**2)) if other_dt.grad is not None else (-1 * out.grad * self.data / (other_dt.data**2))
+                                                                                                                                                                                                                                                                                                        
         out._backward = _backward
         return out
 
     def __matmul__(self, other):
-        out = DaisyTensor(self.data @ self._unwrap(other), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(self.data @ other_dt.data, requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'matmul'
 
         def _backward():
@@ -91,19 +99,19 @@ class DaisyTensor:
             if self.requires_grad:
                 if out.grad.ndim < 2:
                     out.grad = jnp.expand_dims(out.grad, axis=0)
-                self.grad = jnp.add(self.grad, (out.grad @ other.data.T)) if self.grad is not None else (out.grad @ other.data.T)
-            if other.requires_grad:
+                self.grad = jnp.add(self.grad, (out.grad @ other_dt.data.T)) if self.grad is not None else (out.grad @ other.data.T)
+            if other_dt.requires_grad:
                 if out.grad.ndim < 2:
                     out.grad = jnp.expand_dims(out.grad, axis=0)
-                other.grad = jnp.add(other.grad, (self.data.T @ out.grad)) if other.grad is not None else (self.data.T @ out.grad)
+                other_dt.grad = jnp.add(other_dt.grad, (self.data.T @ out.grad)) if other_dt.grad is not None else (self.data.T @ out.grad)
 
         out._backward = _backward
         return out
 
 
-    def __neg__(self, other):
+    def __neg__(self):
         out = DaisyTensor(-1 * self.data, requires_grad=self.requires_grad)
-        out._prev = {self, other}
+        out._prev = {self}
         out._op = 'neg'
 
         def _backward():
@@ -117,7 +125,7 @@ class DaisyTensor:
         return out
 
     def _unwrap(self, other):
-        return other.data if isinstance(other, DaisyTensor) else other
+        return other if isinstance(other, DaisyTensor) else DaisyTensor(other, requires_grad=False)
 
     def backward(self):
         def build_tree(x):
@@ -265,8 +273,9 @@ class DaisyTensor:
         return out
 
     def pow(self, other):
-        out = DaisyTensor(jnp.pow(self.data, self._unwrap(other)), requires_grad=self.requires_grad or other.requires_grad)
-        out._prev = {self, other}
+        other_dt = self._unwrap(other)
+        out = DaisyTensor(jnp.pow(self.data, other_dt.data), requires_grad=self.requires_grad or other.requires_grad)
+        out._prev = {self, other_dt} if other_dt.requires_grad else {self}
         out._op = 'pow'
 
         def _backward():
@@ -274,9 +283,9 @@ class DaisyTensor:
                 return
 
             if self.requires_grad:
-                self.grad = jnp.add(self.grad, out.grad * (self._unwrap(other) * jnp.pow(self.data, self._unwrap(other) - 1))) if self.grad is not None else (out.grad * (self._unwrap(other) * jnp.pow(self.data, self._unwrap(other) - 1)))
-            if other.requires_grad:
-                other.grad = jnp.add(self.grad, (out.grad * jnp.pow(self.data, other.data) * jnp.log(self.data))) if self.grad is not None else (out.grad * jnp.pow(self.data, other.data) * jnp.log(self.data))
+                self.grad = jnp.add(self.grad, out.grad * other_dt.data * jnp.pow(self.data, other_dt.data - 1)) if self.grad is not None else (out.grad * (other_dt.data * jnp.pow(self.data, other_dt.data - 1)))
+            if other_dt.requires_grad:
+                other_dt.grad = jnp.add(self.grad, (out.grad * jnp.pow(self.data, other_dt.data) * jnp.log(self.data))) if self.grad is not None else (out.grad * jnp.pow(self.data, other_dt.data) * jnp.log(self.data))
 
         out._backward = _backward
         return out
@@ -311,7 +320,8 @@ class DaisyTensor:
         out._backward = _backward
         return out
 
-    def reshape(self, new_shape: tuple):
+    def reshape(self, *args):
+        new_shape = tuple(args)
         out = DaisyTensor(jnp.reshape(self.data, new_shape), requires_grad=self.requires_grad)
         out._prev = {self}
         out._op = 'reshape'
@@ -342,6 +352,103 @@ class DaisyTensor:
         out._backward = _backward
         return out
 
+    def take(self, indices, axis=0):
+        out = DaisyTensor(jnp.take(self.data, indices=indices, axis=axis), requires_grad=self.requires_grad)
+        out._prev = {self}
+        out._op = 'take'
+
+        def _backward():
+            if out.grad is None:
+                return
+
+            if self.requires_grad:
+                self.grad = jnp.add(self.grad, jnp.zeros_like(self.data).at[indices].add(out.grad)) if self.grad is not None else jnp.zeros_like(self.data).at[indices].add(out.grad)
+
+        out._backward = _backward
+        return out
+
+    def __getitem__(self, idx):
+        return self.take(idx)
+
+    def split(self, chunks: int, axis: int):
+        splits = jnp.split(self.data, chunks, axis=axis)
+        outputs = []
+
+        for i, chunk in enumerate(splits):
+            out = DaisyTensor(chunk, requires_grad=self.requires_grad)
+            out._prev = {self}
+            out._op = 'split'
+            out._meta = {
+                'axis': axis,
+                'index': i,
+                'num_splits': len(splits)
+            }
+            outputs.append(out)
+
+        def _backward():
+            for out in outputs:
+                if out.grad is None:
+                    return
+
+            if self.requires_grad:
+                sorted_grads = [out.grad for out in sorted(outputs, key=lambda x: x._meta['index'])]
+                grad_back = jnp.concatenate(sorted_grads, axis=axis)
+                self.grad = jnp.add(self.grad, grad_back) if self.grad is not None else grad_back
+
+        for out in outputs:
+            out._backward = _backward
+        return outputs
+
+    def softmax(self, axis: int=-1):
+        x_exp = DaisyTensor(self.data - (self.max(axis=axis, keepdims=True)).data, requires_grad=False).exp()
+        out = x_exp / x_exp.sum(axis=axis, keepdims=True)
+        out._prev = {self}
+        out._op = 'softmax'
+
+        return out
+
+    def tanh(self):
+        out = DaisyTensor(jnp.tanh(self.data), requires_grad=self.requires_grad)
+        out._prev = {self}
+        out._op = 'tanh'
+
+        def _backward():
+            if out.grad is None:
+                return
+
+            if self.requires_grad:
+                self.grad = jnp.add(self.grad, out.grad * (1 - (jnp.tanh(self.data) ** 2))) if self.grad is not None else (out.grad * (1 - (jnp.tanh(self.data) ** 2)))
+
+        out._backward = _backward
+        return out
+                                                                                                                                                                                                                                                                    
+    def gelu(self):
+        phi_x = jnp.tanh(jnp.sqrt(2 / jnp.pi) * (self.data + 0.044715 * jnp.pow(self.data, 3)))
+        out = DaisyTensor(0.5 * self.data * (1 + phi_x), requires_grad=self.requires_grad)
+        out._prev = {self}
+        out._op = 'gelu'
+
+        def _backward():
+            if out.grad is None:
+                return
+
+            if self.requires_grad:
+                grad_back = (0.5 * (1 + phi_x)) + (0.5 * self.data * (1 - phi_x**2)) * jnp.sqrt(2 / jnp.pi) * (1 + (3 * (0.044715 * self.data**2)))
+                self.grad = jnp.add(self.grad, out.grad * grad_back) if self.grad is not None else (out.grad * grad_back)
+
+        out._backward = _backward
+        return out
+
+    def dropout(self, key, p=0.5):
+        if not self.requires_grad or p == 0.0:
+            return self
+        keep_prob = 1.0 - p
+        mask = random.bernoulli(key, keep_prob, shape=self.data.shape)
+        out = DaisyTensor(self.data * mask / keep_prob, requires_grad=self.requires_grad)
+        out._prev = {self}
+        out._op = 'dropout'
+
+        return out
 
 
 
